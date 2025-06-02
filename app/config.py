@@ -8,5 +8,6 @@ class Config:
     REDIS_PORT = int(os.getenv('REDIS_PORT', '6379'))
     TASK_QUEUE = os.getenv('TASK_QUEUE')
     UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
+    RESULTS_DIR = os.getenv('RESULTS_DIR', 'results')
 
 config = Config()

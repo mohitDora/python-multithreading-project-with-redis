@@ -1,5 +1,10 @@
 from app.redis.client import redis_client
 import os
+import csv
+from app.config import config
+from app.redis.client import init_redis
+
+redis_client=init_redis()
 
 def save_file(file, file_path):
     """
@@ -41,13 +46,23 @@ def proccess_file(task_id, file_path):
     """
     redis_client.hset('task_status', task_id, 'PROCESSING')
     try:
+        row_count = 0
         import time
         time.sleep(5)  # Simulate a delay for processing
-        redis_client.hset(task_id, mapping={"status": "COMPLETED", "file_path": file_path})
+        #store result in local
+        with open(file_path, 'r') as csvfile:
+            result = csv.reader(csvfile)
+            header = next(result,None)
+            for _ in result:
+                row_count += 1
+            row_count = row_count - 1 if header else row_count
+        with open(f"{config.RESULTS_DIR}/{task_id}.txt", 'w', newline='') as result_file:
+            result_file.write(f"{row_count}")
+        redis_client.hset(task_id, mapping={"status": "COMPLETED", "result_file_path": f"{config.RESULTS_DIR}/{task_id}.txt"})
     except FileNotFoundError:
         redis_client.hset(task_id, mapping={"status": "FAILED", "error": "File not found"})
     except Exception as e:
         redis_client.hset(task_id, mapping={"status": "FAILED", "error": str(e)})
     finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        if not delete_file(file_path):
+            raise Exception("Failed to delete file")

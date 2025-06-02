@@ -40,3 +40,22 @@ async def upload_file(file: UploadFile = File(...)):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("result/{task_id}")
+async def get_result(task_id: str):
+    """
+    Get the result of a task.
+    
+    :param task_id: The ID of the task.
+    :return: A JSON response containing the result of the task.
+    """
+    try:
+        task = redis_client.hget(task_id)
+        if task is None:
+            raise HTTPException(status_code=404, detail="Task not found or expired")
+        if task.status == "COMPLETED":
+            with open(task.result_file_path, 'r') as result_file:
+                return JSONResponse(status_code=200, content={"result": result_file.read()})
+            return JSONResponse(status_code=200, content={"status": task.status, "error": task.error})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
