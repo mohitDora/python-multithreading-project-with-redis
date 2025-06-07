@@ -45,6 +45,3 @@ This project demonstrates a file processing system using Python multithreading, 
 - Only CSV files are accepted for upload.
 - Processed results are stored in the `results` directory.
 - Tasks and their statuses are managed in Redis.
-
-## License
-MIT 
