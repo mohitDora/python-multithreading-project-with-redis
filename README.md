@@ -23,14 +23,14 @@ This project demonstrates a file processing system using Python multithreading, 
    pip install -r requirements.txt
    ```
 3. **Set up environment variables**:
-   - Create a `.env` file in the root directory with the following (or use defaults):
-     ```env
-     REDIS_HOST=localhost
-     REDIS_PORT=6379
-     TASK_QUEUE=task_queue
-     UPLOAD_FOLDER=uploads
-     RESULTS_DIR=results
-     ```
+   Create a `.env` file in the root directory with the following (or use defaults):
+   ```env
+   REDIS_HOST=localhost
+   REDIS_PORT=6379
+   TASK_QUEUE=task_queue
+   UPLOAD_FOLDER=uploads
+   RESULTS_DIR=results
+   ```
 4. **Start Redis server** (if not already running)
 5. **Run the application**:
    ```bash
