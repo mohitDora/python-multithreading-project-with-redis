@@ -10,21 +10,19 @@ router = APIRouter()
 # Initialize Redis client
 redis_client = init_redis()
 
+
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     """
     Upload a file to the server.
-    
+
     :param file: The file to upload.
     :return: A JSON response indicating success or failure.
     """
     try:
         if not file.filename.endswith(".csv"):
-            raise HTTPException(
-                status_code=400,
-                detail="Only CSV files are allowed."
-            )
-        
+            raise HTTPException(status_code=400, detail="Only CSV files are allowed.")
+
         task_id = str(uuid.uuid4())
         file_extension = os.path.splitext(file.filename)[1]
         local_file_name = f"{task_id}{file_extension}"
@@ -32,30 +30,61 @@ async def upload_file(file: UploadFile = File(...)):
 
         if not save_file(file.file, file_path):
             raise HTTPException(status_code=500, detail="Failed to save file")
-        
+
         redis_client.rpush(config.TASK_QUEUE, task_id)
         redis_client.hset(task_id, mapping={"status": "QUEUED", "file_path": file_path})
-        
-        return JSONResponse(status_code=200, content={"message": "File uploaded successfully", "task_id": task_id})
-    
+        redis_client.expire(task_id, 60)
+
+        return JSONResponse(
+            status_code=200,
+            content={"message": "File uploaded successfully", "task_id": task_id},
+        )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
-@router.get("result/{task_id}")
+
+
+@router.get("/result/{task_id}")
 async def get_result(task_id: str):
     """
     Get the result of a task.
-    
+
     :param task_id: The ID of the task.
     :return: A JSON response containing the result of the task.
     """
     try:
-        task = redis_client.hget(task_id)
+        task = redis_client.hgetall(task_id)
+        task_decoded = {k.decode(): v.decode() for k, v in task.items()}
+        print(task_decoded["status"])
         if task is None:
             raise HTTPException(status_code=404, detail="Task not found or expired")
-        if task.status == "COMPLETED":
-            with open(task.result_file_path, 'r') as result_file:
-                return JSONResponse(status_code=200, content={"result": result_file.read()})
-            return JSONResponse(status_code=200, content={"status": task.status, "error": task.error})
+        if task_decoded["status"] == "COMPLETED":
+            with open(task_decoded["result_file_path"], "r") as result_file:
+                return JSONResponse(
+                    status_code=200, content={"result": result_file.read()}
+                )
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": task_decoded["status"],
+                    "error": task_decoded["error"],
+                },
+            )
+        elif task_decoded["status"] == "FAILED":
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "status": task_decoded["status"],
+                    "error": task_decoded["error"],
+                },
+            )
+        else:
+            return JSONResponse(
+                status_code=202,
+                content={
+                    "status": task_decoded["status"],
+                    "message": "Task is still processing",
+                },
+            )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
